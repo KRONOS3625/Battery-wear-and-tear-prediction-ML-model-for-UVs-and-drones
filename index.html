@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battery Degradation Predictor</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Machine Learning for EVs and Drones</p>
+        <h1>Battery wear prediction trained on real NASA aging data.</h1>
+        <p class="hero-text">
+          This dashboard estimates battery wear, state of health, and remaining useful life
+          from internal resistance, capacity, cycle number, and temperature.
+        </p>
+        <div class="hero-chips" id="source-chips">
+          <span class="chip">Loading dataset sources...</span>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="stat-card">
+          <span class="stat-label">Training samples</span>
+          <strong id="sample-count">-</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Battery cells</span>
+          <strong id="battery-count">-</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">SoH MAE</span>
+          <strong id="soh-metric">-</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">RUL MAE</span>
+          <strong id="rul-metric">-</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <section class="panel input-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">Prediction Inputs</p>
+          <h2>Pack snapshot</h2>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Internal resistance</span>
+            <strong><span id="ir-display">82</span> mOhm</strong>
+            <input id="internal-resistance" type="range" min="20" max="250" step="1" value="82">
+          </label>
+
+          <label class="field">
+            <span>Capacity</span>
+            <strong><span id="capacity-display">1.82</span> Ah</strong>
+            <input id="capacity" type="range" min="1.35" max="2.10" step="0.01" value="1.82">
+          </label>
+
+          <label class="field">
+            <span>Cycle number</span>
+            <strong><span id="cycle-display">124</span> cycles</strong>
+            <input id="cycle-number" type="range" min="1" max="220" step="1" value="124">
+          </label>
+
+          <label class="field">
+            <span>Temperature</span>
+            <strong><span id="temperature-display">31</span> C</strong>
+            <input id="temperature" type="range" min="20" max="52" step="1" value="31">
+          </label>
+        </div>
+
+        <button class="predict-button" id="predict-button">Predict Wear and Tear</button>
+        <p class="input-note">
+          Use live measurements from your EV or drone battery pack. The model is trained on public
+          NASA battery-aging data already stored in this project.
+        </p>
+      </section>
+
+      <section class="panel result-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">Predicted Battery Health</p>
+          <h2>Wear summary</h2>
+        </div>
+
+        <div class="summary-row">
+          <div class="health-ring">
+            <div class="health-ring-inner">
+              <span class="health-label">SoH</span>
+              <strong id="soh-value">--</strong>
+              <span class="health-sub">state of health</span>
+            </div>
+          </div>
+
+          <div class="summary-copy">
+            <span class="badge" id="health-badge">Waiting for prediction</span>
+            <p id="health-text">
+              Run a prediction to see the estimated condition of the battery and how quickly it is degrading.
+            </p>
+            <div class="summary-metrics">
+              <div class="metric-tile">
+                <span>Wear level</span>
+                <strong id="wear-value">--</strong>
+              </div>
+              <div class="metric-tile">
+                <span>Remaining useful life</span>
+                <strong id="rul-value">--</strong>
+              </div>
+              <div class="metric-tile">
+                <span>Predicted end-of-life cycle</span>
+                <strong id="eol-value">--</strong>
+              </div>
+              <div class="metric-tile">
+                <span>Thermal risk</span>
+                <strong id="thermal-value">--</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel chart-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">Capacity Forecast</p>
+          <h2>Predicted degradation curve</h2>
+        </div>
+        <div class="chart-card">
+          <svg id="forecast-chart" viewBox="0 0 760 320" preserveAspectRatio="none"></svg>
+        </div>
+        <p class="chart-note" id="forecast-note">
+          The chart will show historical context plus forecasted capacity fade toward end-of-life.
+        </p>
+      </section>
+
+      <section class="panel chart-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">Wear Drivers</p>
+          <h2>Feature contribution profile</h2>
+        </div>
+        <div id="contribution-list" class="contribution-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Battery Wear Predictor — UV & Drones</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #6b6b66; margin-bottom: 1.5rem; }
+
+  /* API key banner */
+  .api-banner { background: #fff; border: 1px solid #e0dfd8; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .api-banner label { font-size: 13px; color: #6b6b66; white-space: nowrap; }
+  .api-banner input { flex: 1; min-width: 220px; padding: 7px 10px; border: 1px solid #d0cfc8; border-radius: 6px; font-size: 13px; font-family: monospace; background: #fafaf8; }
+  .api-banner input:focus { outline: none; border-color: #888; }
+  .api-status { font-size: 12px; padding: 4px 10px; border-radius: 4px; background: #f0f0ea; color: #6b6b66; white-space: nowrap; }
+  .api-status.ok { background: #eaf3de; color: #3b6d11; }
+
+  .vehicle-toggle { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+  .vtab { flex: 1; padding: 8px; border: 1px solid #d0cfd8; border-radius: 8px; font-size: 13px; cursor: pointer; background: #fff; color: #6b6b66; text-align: center; transition: all 0.15s; }
+  .vtab.active { background: #eaf3de; border-color: #639922; color: #2a5200; font-weight: 600; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  @media(max-width:600px){ .grid2,.grid3{ grid-template-columns:1fr; } }
+
+  .card { background: #fff; border: 1px solid #e0dfd8; border-radius: 10px; padding: 1rem 1.25rem; }
+  .section-label { font-size: 11px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: flex; justify-content: space-between; font-size: 13px; color: #555; margin-bottom: 6px; }
+  .field label span { font-weight: 600; color: #1a1a18; }
+  input[type=range] { width: 100%; accent-color: #639922; height: 4px; cursor: pointer; }
+
+  .metric-card { background: #f5f4f0; border-radius: 8px; padding: 1rem; }
+  .metric-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 600; color: #1a1a18; }
+  .metric-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+  .gauge-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 5px; margin-top: 6px; }
+  .badge-good { background: #eaf3de; color: #3b6d11; }
+  .badge-warn { background: #faeeda; color: #854f0b; }
+  .badge-danger { background: #fcebeb; color: #a32d2d; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12px; color: #777; }
+  .bar-label { min-width: 130px; font-size: 12px; }
+  .bar-track { flex: 1; height: 6px; background: #f0f0ea; border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.35s ease, background 0.35s ease; }
+  .bar-pct { min-width: 32px; text-align: right; font-size: 12px; color: #333; font-weight: 600; }
+
+  .predict-btn { width: 100%; padding: 11px; background: #1a1a18; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; margin-top: 12px; transition: background 0.15s; }
+  .predict-btn:hover { background: #333; }
+  .predict-btn:disabled { background: #bbb; cursor: not-allowed; }
+
+  .ai-box { border: 1px solid #e0dfd8; border-radius: 10px; padding: 1rem 1.25rem; margin-top: 12px; min-height: 80px; }
+  .ai-box p { font-size: 13px; color: #555; line-height: 1.65; }
+
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #bbb; animation: pulse 1.2s ease-in-out infinite; margin: 0 2px; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+  .rec-item { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #444; margin-bottom: 8px; line-height: 1.55; }
+  .rec-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+
+  .history-row { display: flex; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid #f0f0ea; font-size: 12px; color: #888; }
+  .history-row:last-child { border-bottom: none; }
+  .h-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-left: auto; }
+
+  .footer { text-align: center; font-size: 11px; color: #bbb; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Battery Wear Predictor</h1>
+  <p class="subtitle">AI-powered degradation analysis for UV & drone battery cells</p>
+
+  <!-- API KEY INPUT -->
+  <div class="api-banner">
+    <label>Anthropic API Key</label>
+    <input type="password" id="api-key" placeholder="sk-ant-api03-..." oninput="checkKey()">
+    <span class="api-status" id="api-status">Not set</span>
+  </div>
+
+  <!-- VEHICLE TYPE -->
+  <div class="vehicle-toggle">
+    <div class="vtab active" onclick="setVehicle('uv',this)">Unmanned vehicle (UV)</div>
+    <div class="vtab" onclick="setVehicle('drone',this)">Drone / UAV</div>
+    <div class="vtab" onclick="setVehicle('heavy',this)">Heavy-duty UV</div>
+  </div>
+
+  <!-- PARAMETER INPUTS -->
+  <div class="grid2">
+    <div class="card">
+      <div class="section-label">Electrochemical</div>
+      <div class="field">
+        <label>Internal resistance (mΩ) <span id="ir-val">45</span></label>
+        <input type="range" min="5" max="200" value="45" step="1" oninput="update('ir',this.value)">
+      </div>
+      <div class="field">
+        <label>Capacity retention (%) <span id="cap-val">87</span></label>
+        <input type="range" min="40" max="100" value="87" step="1" oninput="update('cap',this.value)">
+      </div>
+      <div class="field">
+        <label>Cycle count <span id="cyc-val">340</span></label>
+        <input type="range" min="0" max="2000" value="340" step="10" oninput="update('cyc',this.value)">
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label">Thermal & temporal</div>
+      <div class="field">
+        <label>Avg. temperature (°C) <span id="temp-val">32</span></label>
+        <input type="range" min="-20" max="65" value="32" step="1" oninput="update('temp',this.value)">
+      </div>
+      <div class="field">
+        <label>Avg. charge time (min) <span id="ct-val">48</span></label>
+        <input type="range" min="10" max="180" value="48" step="1" oninput="update('ct',this.value)">
+      </div>
+      <div class="field">
+        <label>Avg. discharge time (min) <span id="dt-val">22</span></label>
+        <input type="range" min="5" max="120" value="22" step="1" oninput="update('dt',this.value)">
+      </div>
+    </div>
+  </div>
+
+  <!-- HEALTH + FACTORS -->
+  <div class="grid2">
+    <div class="card gauge-card">
+      <div class="section-label">Overall health score</div>
+      <svg width="160" height="100" viewBox="0 0 160 100">
+        <path d="M 15 85 A 65 65 0 0 1 145 85" fill="none" stroke="#e8e6e0" stroke-width="12" stroke-linecap="round"/>
+        <path id="arc-fill" d="M 15 85 A 65 65 0 0 1 145 85" fill="none" stroke="#639922" stroke-width="12" stroke-linecap="round" stroke-dasharray="204" stroke-dashoffset="51"/>
+        <text id="score-text" x="80" y="78" text-anchor="middle" font-size="26" font-weight="600" fill="#1a1a18">75</text>
+        <text x="80" y="92" text-anchor="middle" font-size="10" fill="#aaa">/ 100</text>
+      </svg>
+      <div id="health-badge" class="badge badge-good">Good condition</div>
+      <div id="rul-text" style="font-size:12px;color:#888;margin-top:8px;">Est. remaining useful life: <strong>~410 cycles</strong></div>
+    </div>
+    <div class="card">
+      <div class="section-label">Factor contribution to wear</div>
+      <div id="bar-wrap">
+        <div class="bar-row"><span class="bar-label">Internal resistance</span><div class="bar-track"><div class="bar-fill" id="b-ir" style="width:28%;background:#639922"></div></div><span class="bar-pct" id="bp-ir">28%</span></div>
+        <div class="bar-row"><span class="bar-label">Cycle wear</span><div class="bar-track"><div class="bar-fill" id="b-cyc" style="width:17%;background:#639922"></div></div><span class="bar-pct" id="bp-cyc">17%</span></div>
+        <div class="bar-row"><span class="bar-label">Capacity fade</span><div class="bar-track"><div class="bar-fill" id="b-cap" style="width:13%;background:#639922"></div></div><span class="bar-pct" id="bp-cap">13%</span></div>
+        <div class="bar-row"><span class="bar-label">Thermal stress</span><div class="bar-track"><div class="bar-fill" id="b-temp" style="width:10%;background:#639922"></div></div><span class="bar-pct" id="bp-temp">10%</span></div>
+        <div class="bar-row"><span class="bar-label">Charge rate stress</span><div class="bar-track"><div class="bar-fill" id="b-ct" style="width:8%;background:#639922"></div></div><span class="bar-pct" id="bp-ct">8%</span></div>
+        <div class="bar-row"><span class="bar-label">Discharge stress</span><div class="bar-track"><div class="bar-fill" id="b-dt" style="width:10%;background:#639922"></div></div><span class="bar-pct" id="bp-dt">10%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- METRIC CARDS -->
+  <div class="grid3">
+    <div class="metric-card">
+      <div class="metric-label">Degradation rate</div>
+      <div class="metric-value" id="deg-rate">0.041%</div>
+      <div class="metric-sub">capacity loss per cycle</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Cycles to EOL (80% cap)</div>
+      <div class="metric-value" id="eol-cyc">750</div>
+      <div class="metric-sub">cycles to end-of-life</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Thermal risk index</div>
+      <div class="metric-value" id="thermal-risk" style="color:#3b6d11">Low</div>
+      <div class="metric-sub" id="thermal-sub">within safe range</div>
+    </div>
+  </div>
+
+  <!-- AI ANALYSIS -->
+  <div class="card">
+    <div class="section-label">AI diagnostic analysis</div>
+    <button class="predict-btn" id="ai-btn" onclick="runAI()">Run AI analysis</button>
+    <div class="ai-box" id="ai-box">
+      <p style="color:#bbb; font-style:italic;">Adjust parameters above and click "Run AI analysis" to get a detailed diagnostic report with maintenance recommendations.</p>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="card" style="margin-top:12px;">
+    <div class="section-label">Scan history (this session)</div>
+    <div id="history-list" style="color:#bbb; font-size:12px; padding:6px 0;">No scans yet — run analysis to start logging.</div>
+  </div>
+
+  <div class="footer">Battery Wear Predictor · Built with Anthropic Claude API</div>
+</div>
+
+<script>
+const state = { ir:45, cap:87, cyc:340, temp:32, ct:48, dt:22, vehicle:'uv' };
+const profiles = {
+  uv:    { irBase:30,  maxCyc:800,  tempIdeal:25, ctIdeal:60, dtIdeal:30 },
+  drone: { irBase:20,  maxCyc:500,  tempIdeal:22, ctIdeal:45, dtIdeal:20 },
+  heavy: { irBase:50,  maxCyc:1500, tempIdeal:30, ctIdeal:90, dtIdeal:60 }
+};
+const history = [];
+
+function checkKey() {
+  const k = document.getElementById('api-key').value.trim();
+  const s = document.getElementById('api-status');
+  if (k.startsWith('sk-ant')) { s.textContent = 'Key set'; s.className = 'api-status ok'; }
+  else { s.textContent = 'Not set'; s.className = 'api-status'; }
+}
+
+function setVehicle(v, el) {
+  state.vehicle = v;
+  document.querySelectorAll('.vtab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  compute();
+}
+
+function update(key, val) {
+  state[key] = parseFloat(val);
+  document.getElementById(key+'-val').textContent = val;
+  compute();
+}
+
+function compute() {
+  const p = profiles[state.vehicle];
+  const irNorm  = Math.min(state.ir / (p.irBase * 4), 1);
+  const capFade = Math.max(0, (100 - state.cap) / 60);
+  const cycNorm = Math.min(state.cyc / p.maxCyc, 1);
+  const tempDelta = Math.abs(state.temp - p.tempIdeal);
+  const tempNorm = Math.min(tempDelta / 40, 1);
+  const ctRate   = state.ct < 20 ? 1 : Math.min(p.ctIdeal / state.ct, 1);
+  const ctStress = Math.min(Math.max(0, 1 - ctRate) * 0.7 + (state.ct < 20 ? 0.8 : 0), 1);
+  const dtNorm   = Math.min((p.dtIdeal - state.dt) < 0 ? Math.abs(p.dtIdeal - state.dt) / p.dtIdeal : 0, 1) * 0.5;
+
+  const weights = { ir:0.28, cyc:0.22, cap:0.20, temp:0.14, ct:0.10, dt:0.06 };
+  const raw = { ir: irNorm*100, cyc: cycNorm*100, cap: capFade*100, temp: tempNorm*100, ct: ctStress*100, dt: dtNorm*100 };
+  const totalWear = Object.keys(weights).reduce((s,k) => s + weights[k]*raw[k], 0);
+  const health = Math.max(0, Math.round(100 - totalWear));
+
+  // Gauge arc
+  const arcOffset = (204 - (health/100)*204).toFixed(1);
+  const arcColor  = health > 70 ? '#639922' : health > 40 ? '#BA7517' : '#A32D2D';
+  const arc = document.getElementById('arc-fill');
+  arc.style.stroke = arcColor;
+  arc.setAttribute('stroke-dashoffset', arcOffset);
+  document.getElementById('score-text').textContent = health;
+
+  const badge = document.getElementById('health-badge');
+  badge.className = 'badge ' + (health > 70 ? 'badge-good' : health > 40 ? 'badge-warn' : 'badge-danger');
+  badge.textContent = health > 70 ? 'Good condition' : health > 40 ? 'Moderate wear' : 'Critical — replace soon';
+
+  const remaining = Math.max(0, Math.round((health/100) * p.maxCyc * (1 - cycNorm)));
+  document.getElementById('rul-text').innerHTML = `Est. remaining useful life: <strong>~${remaining} cycles</strong>`;
+
+  const degRate = ((100 - state.cap) / Math.max(state.cyc, 1)).toFixed(3);
+  document.getElementById('deg-rate').textContent = degRate + '%';
+  const eol = Math.max(0, Math.round((state.cap - 80) / Math.max(parseFloat(degRate), 0.001)));
+  document.getElementById('eol-cyc').textContent = eol;
+
+  const tIdx = tempDelta > 25 ? 'High' : tempDelta > 12 ? 'Medium' : 'Low';
+  const tColor = tIdx === 'High' ? '#a32d2d' : tIdx === 'Medium' ? '#854f0b' : '#3b6d11';
+  document.getElementById('thermal-risk').textContent = tIdx;
+  document.getElementById('thermal-risk').style.color = tColor;
+  document.getElementById('thermal-sub').textContent = tIdx === 'High' ? 'thermal runaway risk' : tIdx === 'Medium' ? 'monitor closely' : 'within safe range';
+
+  ['ir','cyc','cap','temp','ct','dt'].forEach(k => {
+    const pct = Math.round(raw[k]);
+    document.getElementById('b-'+k).style.width = pct+'%';
+    document.getElementById('b-'+k).style.background = pct > 60 ? '#a32d2d' : pct > 30 ? '#BA7517' : '#639922';
+    document.getElementById('bp-'+k).textContent = pct+'%';
+  });
+
+  return { health, remaining, degRate, tIdx };
+}
+
+async function runAI() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey.startsWith('sk-ant')) {
+    alert('Please enter your Anthropic API key (starts with sk-ant-...) in the banner at the top.');
+    return;
+  }
+  const r = compute();
+  const p = profiles[state.vehicle];
+  const box = document.getElementById('ai-box');
+  const btn = document.getElementById('ai-btn');
+  btn.disabled = true;
+  btn.textContent = 'Analysing...';
+  box.innerHTML = '<div style="display:flex;align-items:center;gap:4px;padding:8px 0;"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+
+  const vehicleName = state.vehicle === 'drone' ? 'drone / UAV' : state.vehicle === 'heavy' ? 'heavy-duty UV' : 'unmanned vehicle (UV)';
+  const prompt = `You are a battery management expert specialising in ${vehicleName} lithium battery diagnostics.
+
+Battery cell data:
+- Internal resistance: ${state.ir} mΩ (healthy baseline: ${p.irBase} mΩ)
+- Capacity retention: ${state.cap}%
+- Cycle count: ${state.cyc} / ${p.maxCyc} max
+- Operating temperature: ${state.temp}°C (ideal: ${p.tempIdeal}°C)
+- Average charge time: ${state.ct} min
+- Average discharge time: ${state.dt} min
+- Health score: ${r.health}/100
+- Remaining useful life: ~${r.remaining} cycles
+- Degradation rate: ${r.degRate}% per cycle
+- Thermal risk: ${r.tIdx}
+
+Write a diagnostic report with:
+1. Two-sentence overall assessment referencing actual numbers
+2. Top 3 specific concerns (be precise, reference numbers)
+3. Three actionable maintenance recommendations
+
+Be concise and technical.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    if (data.error) { box.innerHTML = `<p style="color:#a32d2d;">API error: ${data.error.message}</p>`; return; }
+    const text = data.content?.map(c => c.text||'').join('') || '';
+    renderAI(text, r.health);
+
+    history.unshift({ time: new Date().toLocaleTimeString(), health: r.health, ir: state.ir, cyc: state.cyc, vehicle: state.vehicle });
+    if (history.length > 6) history.pop();
+    renderHistory();
+  } catch(e) {
+    box.innerHTML = `<p style="color:#a32d2d;">Request failed: ${e.message}</p>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run AI analysis';
+  }
+}
+
+function renderAI(text, health) {
+  const lines = text.split('\n').filter(l => l.trim());
+  let html = '';
+  lines.forEach(line => {
+    const clean = line.replace(/^[\d\-\.\*\•]+\.?\s*/,'').trim();
+    if (!clean) return;
+    const isHeading = /^(overall|concern|recommendation|assessment)/i.test(clean);
+    if (isHeading) {
+      html += `<p style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin:12px 0 6px;">${clean}</p>`;
+    } else {
+      const color = health > 70 ? '#3b6d11' : health > 40 ? '#854f0b' : '#a32d2d';
+      html += `<div class="rec-item"><div class="rec-dot" style="background:${color};"></div><span>${clean}</span></div>`;
+    }
+  });
+  document.getElementById('ai-box').innerHTML = html;
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!history.length) { el.innerHTML = '<span style="color:#bbb;">No scans yet.</span>'; return; }
+  el.innerHTML = history.map(h => {
+    const cls = h.health > 70 ? 'badge-good' : h.health > 40 ? 'badge-warn' : 'badge-danger';
+    const label = h.health > 70 ? 'Good' : h.health > 40 ? 'Warn' : 'Critical';
+    return `<div class="history-row">
+      <span style="min-width:65px;">${h.time}</span>
+      <span style="min-width:75px;font-weight:600;text-transform:uppercase;font-size:11px;">${h.vehicle}</span>
+      <span>IR: ${h.ir}mΩ &middot; ${h.cyc} cycles</span>
+      <span class="h-badge ${cls}">${label} ${h.health}</span>
+    </div>`;
+  }).join('');
+}
+
+compute();
+</script>
+</body>
+</html>
