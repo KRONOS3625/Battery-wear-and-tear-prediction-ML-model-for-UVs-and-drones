@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Battery Degradation Predictor</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>Battery Intelligence Console</title>
+  <link rel="stylesheet" href="styles.css?v=20260406b">
 </head>
 <body>
   <div class="page-shell">
     <header class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">Machine Learning for EVs and Drones</p>
-        <h1>Battery wear prediction trained on real NASA aging data.</h1>
+        <p class="eyebrow">Battery Intelligence Console</p>
+        <h1>Real NASA aging data, upgraded with realistic EV and drone operating conditions.</h1>
         <p class="hero-text">
-          This dashboard estimates battery wear, state of health, and remaining useful life
-          from internal resistance, capacity, cycle number, and temperature.
+          This workspace now blends a real-data machine learning core with a richer operational simulator:
+          SoH, RUL, failure probability, thermal risk, anomaly detection, pack imbalance, and low-stress what-if recommendations.
         </p>
         <div class="hero-chips" id="source-chips">
           <span class="chip">Loading dataset sources...</span>
@@ -24,66 +24,177 @@
         <div class="stat-card">
           <span class="stat-label">Training samples</span>
           <strong id="sample-count">-</strong>
+          <p class="stat-detail" id="sample-detail">Real discharge cycles extracted from NASA battery-aging archives.</p>
         </div>
         <div class="stat-card">
           <span class="stat-label">Battery cells</span>
           <strong id="battery-count">-</strong>
+          <p class="stat-detail" id="battery-detail">Unique NASA Li-ion cells used to build the training set.</p>
         </div>
         <div class="stat-card">
           <span class="stat-label">SoH MAE</span>
           <strong id="soh-metric">-</strong>
+          <p class="stat-detail" id="soh-detail">Mean absolute error for state-of-health prediction.</p>
         </div>
         <div class="stat-card">
           <span class="stat-label">RUL MAE</span>
           <strong id="rul-metric">-</strong>
+          <p class="stat-detail" id="rul-detail">Mean absolute error for remaining-cycle prediction.</p>
         </div>
       </div>
     </header>
 
     <main class="dashboard">
-      <section class="panel input-panel">
+      <section class="panel input-panel wide-panel">
         <div class="panel-head">
-          <p class="panel-kicker">Prediction Inputs</p>
-          <h2>Pack snapshot</h2>
+          <p class="panel-kicker">Digital Twin Inputs</p>
+          <h2>Operating scenario</h2>
         </div>
 
-        <div class="field-grid">
-          <label class="field">
-            <span>Internal resistance</span>
-            <strong><span id="ir-display">82</span> mOhm</strong>
-            <input id="internal-resistance" type="range" min="20" max="250" step="1" value="82">
-          </label>
+        <div class="cluster-grid">
+          <div class="subpanel">
+            <h3>Core battery state</h3>
+            <div class="field-grid">
+              <label class="field">
+                <span>Vehicle profile</span>
+                <strong><span id="vehicle-type-display">EV</span></strong>
+                <select id="vehicle-type">
+                  <option value="ev">EV</option>
+                  <option value="drone">Drone</option>
+                </select>
+              </label>
 
-          <label class="field">
-            <span>Capacity</span>
-            <strong><span id="capacity-display">1.82</span> Ah</strong>
-            <input id="capacity" type="range" min="1.35" max="2.10" step="0.01" value="1.82">
-          </label>
+              <label class="field">
+                <span>Chemistry</span>
+                <strong><span id="chemistry-display">Li-ion</span></strong>
+                <select id="chemistry">
+                  <option value="li-ion">Li-ion</option>
+                  <option value="lipo">LiPo</option>
+                  <option value="lfp">LFP</option>
+                </select>
+              </label>
 
-          <label class="field">
-            <span>Cycle number</span>
-            <strong><span id="cycle-display">124</span> cycles</strong>
-            <input id="cycle-number" type="range" min="1" max="220" step="1" value="124">
-          </label>
+              <label class="field">
+                <span>Internal resistance</span>
+                <strong><span id="ir-display">82</span> mOhm</strong>
+                <input id="internal-resistance" type="range" min="20" max="280" step="1" value="82">
+              </label>
 
-          <label class="field">
-            <span>Temperature</span>
-            <strong><span id="temperature-display">31</span> C</strong>
-            <input id="temperature" type="range" min="20" max="52" step="1" value="31">
-          </label>
+              <label class="field">
+                <span>Capacity</span>
+                <strong><span id="capacity-display">1.82</span> Ah</strong>
+                <input id="capacity" type="range" min="1.1" max="2.3" step="0.01" value="1.82">
+              </label>
+
+              <label class="field">
+                <span>Cycle number</span>
+                <strong><span id="cycle-display">124</span> cycles</strong>
+                <input id="cycle-number" type="range" min="1" max="260" step="1" value="124">
+              </label>
+
+              <label class="field">
+                <span>Cell temperature</span>
+                <strong><span id="temperature-display">31</span> C</strong>
+                <input id="temperature" type="range" min="15" max="60" step="1" value="31">
+              </label>
+
+              <label class="field">
+                <span>Ambient temperature</span>
+                <strong><span id="ambient-display">27</span> C</strong>
+                <input id="ambient-temperature" type="range" min="10" max="50" step="1" value="27">
+              </label>
+
+              <label class="field">
+                <span>Voltage under load</span>
+                <strong><span id="voltage-display">3.72</span> V</strong>
+                <input id="voltage" type="range" min="2.6" max="4.2" step="0.01" value="3.72">
+              </label>
+
+              <label class="field">
+                <span>Current draw / charge rate</span>
+                <strong><span id="current-display">2.4</span> A</strong>
+                <input id="current" type="range" min="0.5" max="6.0" step="0.1" value="2.4">
+              </label>
+            </div>
+          </div>
+
+          <div class="subpanel">
+            <h3>Usage behavior</h3>
+            <div class="field-grid">
+              <label class="field">
+                <span>State of charge</span>
+                <strong><span id="soc-display">76</span> %</strong>
+                <input id="soc" type="range" min="5" max="100" step="1" value="76">
+              </label>
+
+              <label class="field">
+                <span>Depth of discharge</span>
+                <strong><span id="dod-display">68</span> %</strong>
+                <input id="dod" type="range" min="10" max="100" step="1" value="68">
+              </label>
+
+              <label class="field">
+                <span>Rest time between cycles</span>
+                <strong><span id="rest-display">1.2</span> h</strong>
+                <input id="rest-hours" type="range" min="0" max="12" step="0.1" value="1.2">
+              </label>
+
+              <label class="field">
+                <span>Battery age</span>
+                <strong><span id="age-display">540</span> days</strong>
+                <input id="age-days" type="range" min="10" max="2500" step="10" value="540">
+              </label>
+
+              <label class="field">
+                <span>Fast-charge events</span>
+                <strong><span id="fast-charge-display">48</span></strong>
+                <input id="fast-charge-count" type="range" min="0" max="300" step="1" value="48">
+              </label>
+
+              <label class="field">
+                <span>Pack series cells</span>
+                <strong><span id="pack-cells-display">12</span></strong>
+                <input id="pack-series-cells" type="range" min="6" max="20" step="1" value="12">
+              </label>
+
+              <label class="field">
+                <span>Payload / cargo load</span>
+                <strong><span id="payload-display">2.4</span> kg</strong>
+                <input id="payload" type="range" min="0" max="12" step="0.1" value="2.4">
+              </label>
+
+              <label class="field">
+                <span>Trip or mission distance</span>
+                <strong><span id="distance-display">42</span> km</strong>
+                <input id="trip-distance" type="range" min="1" max="200" step="1" value="42">
+              </label>
+
+              <label class="field">
+                <span>Average speed</span>
+                <strong><span id="speed-display">54</span> km/h</strong>
+                <input id="average-speed" type="range" min="5" max="130" step="1" value="54">
+              </label>
+
+              <label class="field">
+                <span>Vibration / turbulence</span>
+                <strong><span id="vibration-display">0.9</span> g</strong>
+                <input id="vibration" type="range" min="0" max="5" step="0.1" value="0.9">
+              </label>
+            </div>
+          </div>
         </div>
 
-        <button class="predict-button" id="predict-button">Predict Wear and Tear</button>
-        <p class="input-note">
-          Use live measurements from your EV or drone battery pack. The model is trained on public
-          NASA battery-aging data already stored in this project.
-        </p>
+        <div class="button-row">
+          <button class="predict-button" id="predict-button">Run Battery Intelligence</button>
+          <button class="ghost-button" id="download-report">Download Report</button>
+        </div>
+        <p class="input-note">The ML core is trained on real NASA battery-aging records. Vehicle profile, mission stress, and calendar-aging effects are layered in to make the simulator more realistic for EVs and drones.</p>
       </section>
 
       <section class="panel result-panel">
         <div class="panel-head">
           <p class="panel-kicker">Predicted Battery Health</p>
-          <h2>Wear summary</h2>
+          <h2>Health and failure outlook</h2>
         </div>
 
         <div class="summary-row">
@@ -117,6 +228,22 @@
                 <span>Thermal risk</span>
                 <strong id="thermal-value">--</strong>
               </div>
+              <div class="metric-tile">
+                <span>Failure probability</span>
+                <strong id="failure-value">--</strong>
+              </div>
+              <div class="metric-tile">
+                <span>Model confidence</span>
+                <strong id="confidence-value">--</strong>
+              </div>
+              <div class="metric-tile">
+                <span>Stress index</span>
+                <strong id="stress-value">--</strong>
+              </div>
+              <div class="metric-tile">
+                <span>Anomaly flag</span>
+                <strong id="anomaly-value">--</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -142,9 +269,51 @@
         </div>
         <div id="contribution-list" class="contribution-list"></div>
       </section>
+
+      <section class="panel chart-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">Pack-level View</p>
+          <h2>Cell health heatmap</h2>
+        </div>
+        <div id="heatmap-grid" class="heatmap-grid"></div>
+      </section>
+
+      <section class="panel chart-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">What-if Scenario</p>
+          <h2>Low-stress operating comparison</h2>
+        </div>
+        <div class="comparison-card">
+          <div class="comparison-tile">
+            <span>Projected SoH</span>
+            <strong id="whatif-soh">--</strong>
+          </div>
+          <div class="comparison-tile">
+            <span>Projected RUL</span>
+            <strong id="whatif-rul">--</strong>
+          </div>
+          <p id="whatif-text" class="chart-note">The app will suggest a lower-stress operating profile after prediction.</p>
+        </div>
+      </section>
+
+      <section class="panel chart-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">Maintenance Guidance</p>
+          <h2>Warnings and next actions</h2>
+        </div>
+        <div class="alerts" id="recommendations-list"></div>
+      </section>
+
+      <section class="panel chart-panel wide-panel">
+        <div class="panel-head">
+          <p class="panel-kicker">Model Benchmark</p>
+          <h2>Algorithm comparison</h2>
+        </div>
+        <div id="model-comparison" class="model-comparison"></div>
+      </section>
     </main>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=20260406b"></script>
 </body>
 </html>
